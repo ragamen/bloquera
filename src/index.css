@@ -1415,6 +1415,567 @@ body {
   border: 1px solid var(--borde);
 }
 
+/* Patio de Curado y Maduracion de Prefabricados (ASTM 7 y 28 dias) */
+.vista-curado {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.encabezado-seccion-con-accion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-bottom: 1px solid var(--borde);
+  padding-bottom: 14px;
+}
+
+.banner-norma-concreto {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.col-fase-norma {
+  padding: 16px 18px;
+  border-radius: var(--radio-lg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.col-fase-norma.fase-critica {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+}
+
+.col-fase-norma.fase-apta {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+}
+
+.col-fase-norma.fase-total {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.col-fase-norma .cab-fase {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge-dia-fase {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #ea580c;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+}
+
+.badge-dia-fase.dia-7 {
+  background: #2563eb;
+}
+
+.badge-dia-fase.dia-28 {
+  background: #16a34a;
+}
+
+.col-fase-norma h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--texto-principal);
+  margin: 0;
+}
+
+.col-fase-norma .desc-fase {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+.estado-fase-alerta {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #c2410c;
+  text-transform: uppercase;
+}
+
+.estado-fase-ok {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #1d4ed8;
+  text-transform: uppercase;
+}
+
+.estado-fase-estrella {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #15803d;
+  text-transform: uppercase;
+}
+
+.rejilla-kpi-curado {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.tarjeta-kpi-curado {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--sombra-sm);
+}
+
+.tarjeta-kpi-curado.alerta {
+  border-left: 4px solid #ea580c;
+  background: #fffbf7;
+}
+
+.tarjeta-kpi-curado.info {
+  border-left: 4px solid #2563eb;
+  background: #f8fbff;
+}
+
+.tarjeta-kpi-curado.exito {
+  border-left: 4px solid #16a34a;
+  background: #f7fdf9;
+}
+
+.kpi-label {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  font-weight: 600;
+}
+
+.kpi-valor {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--texto-principal);
+  line-height: 1.1;
+}
+
+.kpi-sub {
+  font-size: 0.75rem;
+  color: var(--texto-apagado);
+}
+
+.barra-filtro-lotes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.btn-chip-filtro {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-chip-filtro:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-chip-filtro.activo {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.bloque-lotes-patio {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cabecera-lotes-titulo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.cabecera-lotes-titulo h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.conteo-lotes {
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+}
+
+.rejilla-tarjetas-lotes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px;
+}
+
+.tarjeta-lote-madurez {
+  background: var(--fondo-tarjeta);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--sombra-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tarjeta-lote-madurez:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-md);
+}
+
+.tarjeta-lote-madurez.curado {
+  border-top: 4px solid #ea580c;
+}
+
+.tarjeta-lote-madurez.apto_7d {
+  border-top: 4px solid #2563eb;
+}
+
+.tarjeta-lote-madurez.maduro_28d {
+  border-top: 4px solid #16a34a;
+}
+
+.lote-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lote-codigo {
+  font-size: 0.72rem;
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--texto-apagado);
+  display: block;
+}
+
+.lote-card-top h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 2px 0 0 0;
+  color: var(--texto-principal);
+}
+
+.badge-fase-madurez {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.badge-fase-madurez.curado {
+  background: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+
+.badge-fase-madurez.apto {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+.badge-fase-madurez.maduro {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.lote-fechas-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.dias-contador strong {
+  color: var(--texto-principal);
+  font-size: 0.95rem;
+}
+
+.barra-maduracion-contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.barra-maduracion-fondo {
+  position: relative;
+  height: 12px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: visible;
+}
+
+.barra-maduracion-progreso {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.barra-maduracion-progreso.curado {
+  background: linear-gradient(90deg, #ea580c, #f97316);
+}
+
+.barra-maduracion-progreso.apto_7d {
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+}
+
+.barra-maduracion-progreso.maduro_28d {
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.marca-hito {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.marca-hito.hito-7d {
+  left: 25%; /* 7 / 28 = 25% */
+}
+
+.marca-hito.hito-28d {
+  left: 100%;
+  transform: translateX(-100%);
+}
+
+.marca-linea {
+  width: 2px;
+  height: 20px;
+  background: #0f172a;
+  opacity: 0.6;
+}
+
+.marca-texto {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #0f172a;
+  background: #ffffff;
+  padding: 0 2px;
+  border-radius: 2px;
+  margin-top: 1px;
+}
+
+.barra-maduracion-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--texto-apagado);
+  font-weight: 600;
+}
+
+.lote-resistencia-caja {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: var(--radio-md);
+  border: 1px solid #f1f5f9;
+}
+
+.dato-resistencia {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dato-resistencia .lbl {
+  font-size: 0.72rem;
+  color: var(--texto-suave);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.dato-resistencia .val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.dato-resistencia .val-stock {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.lote-diagnostico-texto {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--texto-suave);
+  margin: 0;
+}
+
+.aviso-curado-critico {
+  background: #fff7ed;
+  border: 1px dashed #fdba74;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.lote-pie-acciones {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+}
+
+.info-riego {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.74rem;
+}
+
+.lbl-riego {
+  color: var(--texto-apagado);
+}
+
+.val-riego {
+  font-weight: 700;
+  color: var(--texto-principal);
+}
+
+.btn-mini-accion.riego {
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-mini-accion.riego:hover {
+  background: #0369a1;
+}
+
+/* Desglose de madurez en tarjeta de bodega y cola */
+.sub-disp-madurez {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sub-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.sub-tag.apto {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.sub-tag.curado {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.sub-tag.maduro {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.prod-patio-madurez-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+}
+
+.linea-mad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texto-suave);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.dot-apto {
+  background: #2563eb;
+}
+
+.dot.dot-curado {
+  background: #ea580c;
+}
+
+.dot.dot-maduro {
+  background: #16a34a;
+}
+
+.btn-enlace-curado {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 4px 0 0 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-enlace-curado:hover {
+  color: #1d4ed8;
+}
+
 .pie-sistema {
   margin-top: 40px;
   padding-top: 16px;
@@ -1425,6 +1986,15 @@ body {
 }
 
 @media (max-width: 768px) {
+  .banner-norma-concreto {
+    grid-template-columns: 1fr;
+  }
+  .rejilla-kpi-curado {
+    grid-template-columns: 1fr 1fr;
+  }
+  .rejilla-tarjetas-lotes {
+    grid-template-columns: 1fr;
+  }
   .panel-sistema {
     padding: 14px 12px 40px;
   }

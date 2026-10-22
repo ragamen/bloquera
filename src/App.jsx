@@ -9,6 +9,7 @@ const CLIENTES_KEY = 'bloquera-clientes-v1'
 const PRODUCTOS_KEY = 'bloquera-productos-v1'
 const VENTAS_KEY = 'bloquera-ventas-v1'
 const PEDIDOS_KEY = 'bloquera-pedidos-v1'
+const LOTES_KEY = 'bloquera-lotes-curado-v1'
 
 const PRODUCTOS_DEFAULT = [
   {
@@ -144,7 +145,59 @@ const PEDIDOS_DEFAULT = [
     estado: 'en_cola',
     prioridad: 'media',
     fechaEntregaEstimada: new Date(Date.now() + 86400000 * 5).toISOString(),
-    nota: 'Cerca perimetral de potrero nuevo',
+  },
+]
+
+const LOTES_DEFAULT = [
+  {
+    id: 'lote-b12-maduro',
+    productoId: 'b12',
+    productoNombre: 'Bloque 12 (12×20×40 cm)',
+    cantidadInicial: 200,
+    cantidadDisponible: 200,
+    fechaProduccion: new Date(Date.now() - 86400000 * 32).toISOString(),
+    ultimoRiego: new Date(Date.now() - 86400000 * 25).toISOString(),
+    nota: 'Madurez total de 28 días superada (32 días). 100% f\'c estructural.',
+  },
+  {
+    id: 'lote-b12-apto',
+    productoId: 'b12',
+    productoNombre: 'Bloque 12 (12×20×40 cm)',
+    cantidadInicial: 150,
+    cantidadDisponible: 150,
+    fechaProduccion: new Date(Date.now() - 86400000 * 12).toISOString(),
+    ultimoRiego: new Date(Date.now() - 86400000 * 5).toISOString(),
+    nota: 'Maduración de 12 días. Superó umbral de 7 días, apto para despacho (~78% f\'c).',
+  },
+  {
+    id: 'lote-b14-maduro',
+    productoId: 'b14',
+    productoNombre: 'Bloque 14 (14×20×40 cm)',
+    cantidadInicial: 120,
+    cantidadDisponible: 120,
+    fechaProduccion: new Date(Date.now() - 86400000 * 29).toISOString(),
+    ultimoRiego: new Date(Date.now() - 86400000 * 22).toISOString(),
+    nota: 'Madurez total 28 días superada. Resistencia óptima para muros de carga.',
+  },
+  {
+    id: 'lote-estantillo-apto',
+    productoId: 'estantillo',
+    productoNombre: 'Estantillo para cerca (2.0 m)',
+    cantidadInicial: 30,
+    cantidadDisponible: 30,
+    fechaProduccion: new Date(Date.now() - 86400000 * 9).toISOString(),
+    ultimoRiego: new Date(Date.now() - 86400000 * 2).toISOString(),
+    nota: 'Lote de 9 días. Hormigón curado apto para flete e hincado en potrero.',
+  },
+  {
+    id: 'lote-esquinero-curado',
+    productoId: 'esquinero',
+    productoNombre: 'Esquinero reforzado para potrero',
+    cantidadInicial: 15,
+    cantidadDisponible: 15,
+    fechaProduccion: new Date(Date.now() - 86400000 * 4).toISOString(),
+    ultimoRiego: new Date().toISOString(),
+    nota: 'En curado húmedo activo (Día 4 de 7). Riego diario obligatorio en patio.',
   },
 ]
 
@@ -300,6 +353,67 @@ function cargarHistorial() {
   }
 }
 
+function cargarLotes() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LOTES_KEY))
+    if (Array.isArray(d) && d.length > 0) return d
+    return LOTES_DEFAULT
+  } catch {
+    return LOTES_DEFAULT
+  }
+}
+
+function calcularMaduracionLote(lote, ahora = Date.now()) {
+  const tProd = new Date(lote.fechaProduccion).getTime()
+  const diffMs = Math.max(0, ahora - tProd)
+  const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (dias < 7) {
+    const pct = Math.min(65, Math.max(20, Math.round(20 + (dias / 7) * 45)))
+    return {
+      dias,
+      fase: 'curado',
+      titulo: 'Curado Húmedo (0 a 6 días)',
+      etiqueta: 'En Fraguado (Día ' + dias + ' de 7)',
+      despachable: false,
+      diasParaDespacho: 7 - dias,
+      diasParaMadurez: 28 - dias,
+      pctResistencia: pct,
+      claseBadge: 'curado',
+      descripcion: 'Concreto tierno en fraguado crítico. Riego diario obligatorio. No despachar para evitar fisuras o rotura.',
+    }
+  }
+
+  if (dias < 28) {
+    const pct = Math.min(99, Math.max(70, Math.round(70 + ((dias - 7) / 21) * 29)))
+    return {
+      dias,
+      fase: 'apto_7d',
+      titulo: 'Maduración 7 Días (Apto Despacho)',
+      etiqueta: 'Apto Despacho (Día ' + dias + ' de 28)',
+      despachable: true,
+      diasParaDespacho: 0,
+      diasParaMadurez: 28 - dias,
+      pctResistencia: pct,
+      claseBadge: 'apto',
+      descripcion: 'Superó los 7 días (~70% f\'c). Concreto con resistencia mínima requerida para transporte y carga comercial.',
+    }
+  }
+
+  return {
+    dias,
+    fase: 'maduro_28d',
+    titulo: 'Madurez Total 28 Días',
+    etiqueta: '100% Maduro (Día ' + dias + '+)',
+    despachable: true,
+    diasParaDespacho: 0,
+    diasParaMadurez: 0,
+    pctResistencia: 100,
+    claseBadge: 'maduro',
+    descripcion: 'Maduración completa según norma técnica de concreto (28 días). Resistencia estructural nominal 100%.',
+  }
+}
+
 function num(v) {
   const n = parseFloat(String(v).replace(',', '.'))
   return Number.isFinite(n) ? n : 0
@@ -345,6 +459,8 @@ export default function App() {
   const [hoy, setHoy] = useState(cargarDia)
   const [ventas, setVentas] = useState(cargarVentas)
   const [historial, setHistorial] = useState(cargarHistorial)
+  const [lotesCurado, setLotesCurado] = useState(cargarLotes)
+  const [filtroProdLote, setFiltroProdLote] = useState('todos')
   const [momentoActual] = useState(() => Date.now())
 
   const [modalProveedor, setModalProveedor] = useState(false)
@@ -433,6 +549,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(HISTORIAL_KEY, JSON.stringify(historial))
   }, [historial])
+
+  useEffect(() => {
+    localStorage.setItem(LOTES_KEY, JSON.stringify(lotesCurado))
+  }, [lotesCurado])
 
   const productoActivo = useMemo(() => {
     const p = productos.find((x) => x.id === hoy.productoId)
@@ -716,6 +836,132 @@ export default function App() {
     }
   }, [clientes, ventas, pedidos, momentoActual])
 
+  const resumenCurado = useMemo(() => {
+    const ahora = momentoActual
+    let totalUnidadesPatio = 0
+    let unidadesEnCuradoMenor7d = 0
+    let unidadesAptas7d = 0
+    let unidadesMaduras28d = 0
+
+    const porProducto = {}
+    for (const p of productos) {
+      porProducto[p.id] = {
+        total: 0,
+        enCurado: 0,
+        apto7d: 0,
+        maduro28d: 0,
+        despachable: 0,
+        proximoAptoDias: null,
+      }
+    }
+
+    for (const lote of lotesCurado) {
+      const cantL = num(lote.cantidadDisponible)
+      if (cantL <= 0) continue
+
+      totalUnidadesPatio += cantL
+      const mad = calcularMaduracionLote(lote, ahora)
+
+      if (!porProducto[lote.productoId]) {
+        porProducto[lote.productoId] = {
+          total: 0,
+          enCurado: 0,
+          apto7d: 0,
+          maduro28d: 0,
+          despachable: 0,
+          proximoAptoDias: null,
+        }
+      }
+
+      porProducto[lote.productoId].total += cantL
+
+      if (mad.fase === 'curado') {
+        unidadesEnCuradoMenor7d += cantL
+        porProducto[lote.productoId].enCurado += cantL
+        const dFaltan = mad.diasParaDespacho
+        if (
+          porProducto[lote.productoId].proximoAptoDias === null ||
+          dFaltan < porProducto[lote.productoId].proximoAptoDias
+        ) {
+          porProducto[lote.productoId].proximoAptoDias = dFaltan
+        }
+      } else if (mad.fase === 'apto_7d') {
+        unidadesAptas7d += cantL
+        porProducto[lote.productoId].apto7d += cantL
+        porProducto[lote.productoId].despachable += cantL
+      } else {
+        unidadesMaduras28d += cantL
+        porProducto[lote.productoId].maduro28d += cantL
+        porProducto[lote.productoId].despachable += cantL
+      }
+    }
+
+    return {
+      totalUnidadesPatio,
+      unidadesEnCuradoMenor7d,
+      unidadesAptas7d,
+      unidadesMaduras28d,
+      totalDespachable: unidadesAptas7d + unidadesMaduras28d,
+      porProducto,
+    }
+  }, [lotesCurado, momentoActual, productos])
+
+  const descontarDeLotesFIFO = (prodId, cantidadADescontar) => {
+    let remanente = cantidadADescontar
+    setLotesCurado((prev) => {
+      const ordenados = [...prev].sort(
+        (a, b) => new Date(a.fechaProduccion) - new Date(b.fechaProduccion),
+      )
+      return ordenados.map((lote) => {
+        if (lote.productoId !== prodId || remanente <= 0) return lote
+        const disp = num(lote.cantidadDisponible)
+        if (disp <= 0) return lote
+        const aDescontar = Math.min(disp, remanente)
+        remanente -= aDescontar
+        return {
+          ...lote,
+          cantidadDisponible: Math.max(0, Math.round(disp - aDescontar)),
+        }
+      })
+    })
+  }
+
+  const crearLoteCurado = (prodId, prodNombre, cantidad, nota = '') => {
+    const nuevo = {
+      id: 'lote-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      productoId: prodId,
+      productoNombre: prodNombre,
+      cantidadInicial: cantidad,
+      cantidadDisponible: cantidad,
+      fechaProduccion: new Date().toISOString(),
+      ultimoRiego: new Date().toISOString(),
+      nota: nota || 'Lote nuevo ingresado a patio para curado de 7 y 28 días',
+    }
+    setLotesCurado((prev) => [nuevo, ...prev])
+  }
+
+  const registrarRiegoLote = (loteId) => {
+    setLotesCurado((prev) => {
+      const ahoraIso = new Date().toISOString()
+      return prev.map((lote) => (lote.id === loteId ? { ...lote, ultimoRiego: ahoraIso } : lote))
+    })
+    alert('Riego registrado para el lote. Mantener la humedad constante en los primeros 7 días es fundamental para alcanzar la resistencia nominal.')
+  }
+
+  const regarTodosEnCurado = () => {
+    setLotesCurado((prev) => {
+      const ahoraIso = new Date().toISOString()
+      return prev.map((lote) => {
+        const mad = calcularMaduracionLote(lote, momentoActual)
+        if (mad.fase === 'curado') {
+          return { ...lote, ultimoRiego: ahoraIso }
+        }
+        return lote
+      })
+    })
+    alert('Riego general de patio completado para todos los lotes en curado húmedo.')
+  }
+
   const proveedorSugerido = (tipo) => {
     return proveedores.find((p) => p.material.toLowerCase() === tipo.toLowerCase()) || proveedores[0]
   }
@@ -876,7 +1122,25 @@ export default function App() {
       arenaLanzada: '0',
       arrocilloLanzado: '0',
     }))
-    alert('Produccion finalizada con exito. Inventario de productos terminados incrementado en patio.')
+
+    if (unidadesBuenas > 0) {
+      crearLoteCurado(
+        p.id,
+        p.nombre,
+        unidadesBuenas,
+        'Cierre de turno: ' + (hoy.nota || 'Jornada de producción'),
+      )
+    }
+
+    alert(
+      'Produccion finalizada con exito. +' +
+        unidadesBuenas +
+        ' unidades ingresadas a Patio de Curado.\n\n' +
+        'Etapas de Maduracion de Concreto:\n' +
+        '• Dias 0 a 6: Fraguado inicial y riego diario (resistencia en desarrollo, no despachar).\n' +
+        '• Dia 7: Resistencia minima para despacho (~70% f\'c).\n' +
+        '• Dia 28: Maduracion total (100% f\'c de resistencia estructural).',
+    )
   }
 
   const crearOPonerEnColaPedido = (e) => {
@@ -906,6 +1170,29 @@ export default function App() {
       )
 
       if (decision) {
+        const infoMad = resumenCurado.porProducto[prod.id] || { despachable: 0, enCurado: 0 }
+        if (infoMad.despachable < cantidad) {
+          const faltante = cantidad - infoMad.despachable
+          const advertencia =
+            'CONTROL DE CALIDAD (Curado y Maduracion del Concreto):\n\n' +
+            'El producto "' +
+            prod.nombre +
+            '" requiere 7 dias para alcanzar resistencia minima de transporte y 28 dias para madurez total.\n\n' +
+            '• Unidades aptas para despacho (≥ 7 dias): ' +
+            infoMad.despachable +
+            '\n' +
+            '• Unidades en fraguado tierno (< 7 dias): ' +
+            infoMad.enCurado +
+            '\n' +
+            '• Faltante con madurez adecuada: ' +
+            faltante +
+            ' unidades.\n\n' +
+            'Despachar concreto con menos de 7 dias genera alto riesgo de fisuras y roturas en viaje.\n\n' +
+            '¿Deseas despachar de todas formas bajo responsabilidad del cliente?'
+
+          if (!window.confirm(advertencia)) return
+        }
+
         setInvEstado((prev) => {
           const nuevoPorProd = {
             ...prev.invPorProducto,
@@ -917,6 +1204,8 @@ export default function App() {
             invBloques: prod.id === 'b12' ? nuevoPorProd.b12 : prev.invBloques,
           }
         })
+
+        descontarDeLotesFIFO(prod.id, cantidad)
 
         const regVenta = {
           id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
@@ -1076,7 +1365,22 @@ export default function App() {
     }
     setHistorial((h) => [registro, ...h])
 
-    alert('Produccion finalizada. +' + ped.cantidad + ' unidades ingresadas a productos terminados en patio. Orden lista para despachar.')
+    crearLoteCurado(
+      ped.productoId,
+      ped.productoNombre,
+      ped.cantidad,
+      'Orden de pedido finalizada: ' + ped.clienteNombre,
+    )
+
+    alert(
+      'Produccion finalizada. +' +
+        ped.cantidad +
+        ' unidades ingresadas a Patio de Curado.\n\n' +
+        'Etapas de Maduracion:\n' +
+        '• Dias 0 a 6: Fraguado y riego continuo (resistencia inicial).\n' +
+        '• Dia 7: Resistencia minima para despacho (~70% f\'c).\n' +
+        '• Dia 28: Maduracion total (100% f\'c estructural).',
+    )
   }
 
   const despacharPedidoDeCola = (pedId) => {
@@ -1099,6 +1403,29 @@ export default function App() {
       if (!confirmacion) return
     }
 
+    const infoMad = resumenCurado.porProducto[ped.productoId] || { despachable: 0, enCurado: 0 }
+    if (infoMad.despachable < ped.cantidad) {
+      const faltante = ped.cantidad - infoMad.despachable
+      const advertencia =
+        'CONTROL DE CALIDAD (Curado y Resistencia del Concreto):\n\n' +
+        'El producto "' +
+        ped.productoNombre +
+        '" requiere 7 dias de curado para manipulación y transporte y 28 dias para madurez total.\n\n' +
+        '• Unidades aptas para despacho (≥ 7 dias): ' +
+        infoMad.despachable +
+        '\n' +
+        '• Unidades en curado tierno (< 7 dias): ' +
+        infoMad.enCurado +
+        '\n' +
+        '• Faltante maduro para este pedido: ' +
+        faltante +
+        ' unidades.\n\n' +
+        'Despachar bloques con menos de 7 dias genera alto riesgo de que se fracturen en el flete.\n\n' +
+        '¿Deseas autorizar el despacho de todas formas bajo advertencia al cliente?'
+
+      if (!window.confirm(advertencia)) return
+    }
+
     setInvEstado((prev) => {
       const nuevoPorProd = {
         ...prev.invPorProducto,
@@ -1110,6 +1437,8 @@ export default function App() {
         invBloques: ped.productoId === 'b12' ? nuevoPorProd.b12 : prev.invBloques,
       }
     })
+
+    descontarDeLotesFIFO(ped.productoId, ped.cantidad)
 
     setPedidos((peds) =>
       peds.map((item) => (item.id === pedId ? { ...item, estado: 'entregado' } : item)),
@@ -1336,6 +1665,14 @@ export default function App() {
             <span className="valor">{pedidosPendientes.length} órdenes</span>
           </div>
           <div className="minidato">
+            <span className="etiqueta">Patio Curado</span>
+            <span className={resumenCurado.unidadesEnCuradoMenor7d > 0 ? 'valor alerta' : 'valor'}>
+              {resumenCurado.unidadesEnCuradoMenor7d > 0
+                ? resumenCurado.unidadesEnCuradoMenor7d + ' en curado'
+                : '100% Maduro'}
+            </span>
+          </div>
+          <div className="minidato">
             <span className="etiqueta">Por cobrar</span>
             <span className="valor">{dinero(totalPorCobrar)}</span>
           </div>
@@ -1354,6 +1691,12 @@ export default function App() {
           onClick={() => setTab('cola')}
         >
           Cola de Pedidos & MRP ({pedidosPendientes.length})
+        </button>
+        <button
+          className={'btn-tab ' + (tab === 'curado' ? 'activo' : '')}
+          onClick={() => setTab('curado')}
+        >
+          Curado & Maduración 7-28d ({resumenCurado.unidadesEnCuradoMenor7d > 0 ? resumenCurado.unidadesEnCuradoMenor7d + ' en riego' : 'Patio al día'})
         </button>
         <button
           className={'btn-tab ' + (tab === 'bodega' ? 'activo' : '')}
@@ -1926,15 +2269,27 @@ export default function App() {
                 <div className="lista-disponibilidad-patio">
                   {productos.map((pr) => {
                     const st = num(inv.invPorProducto?.[pr.id] ?? (pr.id === 'b12' ? inv.invBloques : 0))
+                    const madInfo = resumenCurado.porProducto[pr.id] || { despachable: 0, enCurado: 0, maduro28d: 0, proximoAptoDias: null }
                     return (
                       <div className="item-disp-patio" key={pr.id}>
                         <div>
                           <strong>{pr.nombre}</strong>
                           <span className="disp-categoria">{pr.categoria}</span>
+                          <div className="sub-disp-madurez">
+                            <span className="sub-tag apto">{madInfo.despachable} aptos para despacho (≥7d)</span>
+                            {madInfo.enCurado > 0 && (
+                              <span className="sub-tag curado">
+                                {madInfo.enCurado} en fraguado (disp. en {madInfo.proximoAptoDias}d)
+                              </span>
+                            )}
+                            {madInfo.maduro28d > 0 && (
+                              <span className="sub-tag maduro">{madInfo.maduro28d} con madurez total (28d)</span>
+                            )}
+                          </div>
                         </div>
                         <div className="disp-cifra">
-                          <span className={st > 50 ? 'badge-disp ok' : 'badge-disp bajo'}>
-                            {st} unidades disponibles
+                          <span className={madInfo.despachable > 50 ? 'badge-disp ok' : 'badge-disp bajo'}>
+                            {madInfo.despachable} despachables / {st} tot.
                           </span>
                         </div>
                       </div>
@@ -2146,6 +2501,221 @@ export default function App() {
           </div>
         )}
 
+        {tab === 'curado' && (
+          <div className="vista-curado">
+            <div className="encabezado-seccion-con-accion">
+              <div>
+                <h2>Patio de Curado & Maduración de Prefabricados</h2>
+                <p>
+                  Control técnico del fraguado del concreto: hidratación inicial (7 días) y madurez estructural completa (28 días)
+                </p>
+              </div>
+              <div className="acciones-cabecera">
+                <button
+                  type="button"
+                  className="btn-accion principal"
+                  onClick={regarTodosEnCurado}
+                  title="Humectar todos los lotes menores a 7 días"
+                >
+                  Regar Todos los Lotes en Curado ({resumenCurado.unidadesEnCuradoMenor7d} unid)
+                </button>
+              </div>
+            </div>
+
+            <div className="banner-norma-concreto">
+              <div className="col-fase-norma fase-critica">
+                <div className="cab-fase">
+                  <span className="badge-dia-fase">Días 0 a 6</span>
+                  <h4>Curado Húmedo (Fraguado Inicial)</h4>
+                </div>
+                <p className="desc-fase">
+                  El concreto está tierno y tiene menos del 65% de resistencia. Requiere riego 2 a 3 veces al día para evitar fisuras por retracción térmica. No debe cargarse en camión.
+                </p>
+                <span className="estado-fase-alerta">Prohibido Despachar</span>
+              </div>
+
+              <div className="col-fase-norma fase-apta">
+                <div className="cab-fase">
+                  <span className="badge-dia-fase dia-7">Día 7 a 27</span>
+                  <h4>Maduración 7 Días (Apto Despacho)</h4>
+                </div>
+                <p className="desc-fase">
+                  Alcanza aproximadamente el 70% al 95% de resistencia de diseño. Es el hito técnico donde el bloque ya soporta manipulación, carga y flete comercial seguro.
+                </p>
+                <span className="estado-fase-ok">Apto para Despacho y Flete</span>
+              </div>
+
+              <div className="col-fase-norma fase-total">
+                <div className="cab-fase">
+                  <span className="badge-dia-fase dia-28">Día 28+</span>
+                  <h4>Madurez Total (100% Resistencia)</h4>
+                </div>
+                <p className="desc-fase">
+                  El cemento Portland completa la curva estándar de hidratación (ASTM C90 / INEN). Máxima resistencia estructural y durabilidad para obras exigentes.
+                </p>
+                <span className="estado-fase-estrella">100% f'c Estructural Certificado</span>
+              </div>
+            </div>
+
+            <div className="rejilla-kpi-curado">
+              <div className="tarjeta-kpi-curado">
+                <span className="kpi-label">Total Prefabricados en Patio</span>
+                <span className="kpi-valor">{resumenCurado.totalUnidadesPatio}</span>
+                <span className="kpi-sub">Inventario físico total</span>
+              </div>
+              <div className="tarjeta-kpi-curado alerta">
+                <span className="kpi-label">En Curado Húmedo (&lt; 7 días)</span>
+                <span className="kpi-valor">{resumenCurado.unidadesEnCuradoMenor7d}</span>
+                <span className="kpi-sub">Requieren riego diario obligatorio</span>
+              </div>
+              <div className="tarjeta-kpi-curado info">
+                <span className="kpi-label">Aptos para Despacho (7 a 27 días)</span>
+                <span className="kpi-valor">{resumenCurado.unidadesAptas7d}</span>
+                <span className="kpi-sub">Listos para entrega comercial</span>
+              </div>
+              <div className="tarjeta-kpi-curado exito">
+                <span className="kpi-label">Madurez Total (28+ días)</span>
+                <span className="kpi-valor">{resumenCurado.unidadesMaduras28d}</span>
+                <span className="kpi-sub">100% resistencia estructural</span>
+              </div>
+            </div>
+
+            <div className="barra-filtro-lotes">
+              <span>Filtrar por producto:</span>
+              <button
+                type="button"
+                className={'btn-chip-filtro ' + (filtroProdLote === 'todos' ? 'activo' : '')}
+                onClick={() => setFiltroProdLote('todos')}
+              >
+                Todos los productos ({lotesCurado.length} lotes)
+              </button>
+              {productos.map((p) => {
+                const cL = lotesCurado.filter((l) => l.productoId === p.id && num(l.cantidadDisponible) > 0).length
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={'btn-chip-filtro ' + (filtroProdLote === p.id ? 'activo' : '')}
+                    onClick={() => setFiltroProdLote(p.id)}
+                  >
+                    {p.nombre} ({cL})
+                  </button>
+                )
+              })}
+            </div>
+
+            <section className="bloque-lotes-patio">
+              <div className="cabecera-lotes-titulo">
+                <h3>Lotes de Producción Activos en Patio</h3>
+                <span className="conteo-lotes">
+                  Mostrando{' '}
+                  {
+                    lotesCurado.filter(
+                      (l) =>
+                        num(l.cantidadDisponible) > 0 &&
+                        (filtroProdLote === 'todos' || l.productoId === filtroProdLote),
+                    ).length
+                  }{' '}
+                  lotes con existencia
+                </span>
+              </div>
+
+              <div className="rejilla-tarjetas-lotes">
+                {lotesCurado
+                  .filter(
+                    (l) =>
+                      num(l.cantidadDisponible) > 0 &&
+                      (filtroProdLote === 'todos' || l.productoId === filtroProdLote),
+                  )
+                  .sort((a, b) => new Date(b.fechaProduccion) - new Date(a.fechaProduccion))
+                  .map((lote) => {
+                    const mad = calcularMaduracionLote(lote, momentoActual)
+                    const prod = productos.find((p) => p.id === lote.productoId)
+                    const pctBarra = Math.min(100, Math.round((mad.dias / 28) * 100))
+                    return (
+                      <div className={'tarjeta-lote-madurez ' + mad.fase} key={lote.id}>
+                        <div className="lote-card-top">
+                          <div>
+                            <span className="lote-codigo">{lote.id}</span>
+                            <h4>{lote.productoNombre || prod?.nombre}</h4>
+                          </div>
+                          <span className={'badge-fase-madurez ' + mad.claseBadge}>
+                            {mad.etiqueta}
+                          </span>
+                        </div>
+
+                        <div className="lote-fechas-info">
+                          <span>Fabricado: {fechaCorta(lote.fechaProduccion)}</span>
+                          <span className="dias-contador">
+                            <strong>{mad.dias}</strong> {mad.dias === 1 ? 'día' : 'días'} de curado
+                          </span>
+                        </div>
+
+                        <div className="barra-maduracion-contenedor">
+                          <div className="barra-maduracion-fondo">
+                            <div
+                              className={'barra-maduracion-progreso ' + mad.fase}
+                              style={{ width: pctBarra + '%' }}
+                            />
+                            <div className="marca-hito hito-7d" title="Día 7: Apto Despacho (70%)">
+                              <span className="marca-linea" />
+                              <span className="marca-texto">7d</span>
+                            </div>
+                            <div className="marca-hito hito-28d" title="Día 28: Madurez Total (100%)">
+                              <span className="marca-linea" />
+                              <span className="marca-texto">28d</span>
+                            </div>
+                          </div>
+                          <div className="barra-maduracion-labels">
+                            <span>0d</span>
+                            <span>{pctBarra}% del ciclo (28d)</span>
+                            <span>100% f'c</span>
+                          </div>
+                        </div>
+
+                        <div className="lote-resistencia-caja">
+                          <div className="dato-resistencia">
+                            <span className="lbl">Resistencia estimada:</span>
+                            <strong className="val">{mad.pctResistencia}% de diseño</strong>
+                          </div>
+                          <div className="dato-resistencia">
+                            <span className="lbl">Stock disponible:</span>
+                            <strong className="val-stock">{lote.cantidadDisponible} unidades</strong>
+                          </div>
+                        </div>
+
+                        <p className="lote-diagnostico-texto">{mad.descripcion}</p>
+
+                        {mad.fase === 'curado' && (
+                          <div className="aviso-curado-critico">
+                            <span>Faltan {mad.diasParaDespacho} días de riego para poder despachar.</span>
+                          </div>
+                        )}
+
+                        <div className="lote-pie-acciones">
+                          <div className="info-riego">
+                            <span className="lbl-riego">Último riego:</span>
+                            <span className="val-riego">
+                              {lote.ultimoRiego ? fechaCorta(lote.ultimoRiego) : 'Pendiente hoy'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn-mini-accion riego"
+                            onClick={() => registrarRiegoLote(lote.id)}
+                            title="Registrar riego húmedo de patio para este lote"
+                          >
+                            Registrar Riego de Hoy
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+              </div>
+            </section>
+          </div>
+        )}
+
         {tab === 'bodega' && (
           <div className="vista-bodega">
             <div className="encabezado-seccion">
@@ -2273,6 +2843,39 @@ export default function App() {
                         <span>Valoración estimada</span>
                         <strong>{dinero(num(stockActual) * costoU)}</strong>
                       </div>
+                      {(() => {
+                        const m = resumenCurado.porProducto[p.id] || { despachable: 0, enCurado: 0, maduro28d: 0 }
+                        return (
+                          <div className="prod-patio-madurez-box">
+                            <div className="linea-mad">
+                              <span className="dot dot-apto" />
+                              <span>{m.despachable} aptos despacho (≥7d)</span>
+                            </div>
+                            {m.enCurado > 0 && (
+                              <div className="linea-mad">
+                                <span className="dot dot-curado" />
+                                <span>{m.enCurado} en fraguado (&lt;7d)</span>
+                              </div>
+                            )}
+                            {m.maduro28d > 0 && (
+                              <div className="linea-mad">
+                                <span className="dot dot-maduro" />
+                                <span>{m.maduro28d} madurez total (28d)</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              className="btn-enlace-curado"
+                              onClick={() => {
+                                setFiltroProdLote(p.id)
+                                setTab('curado')
+                              }}
+                            >
+                              Ver Lotes de Curado (7 y 28d)
+                            </button>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )
                 })}

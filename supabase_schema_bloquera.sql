@@ -188,6 +188,21 @@ CREATE TABLE IF NOT EXISTS bloquera.recepcion_compras (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ------------------------------------------------------------------------------
+-- 10. Tabla: lotes_curado (Maduración de prefabricados: 7 y 28 días ASTM)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bloquera.lotes_curado (
+    id TEXT PRIMARY KEY,
+    producto_id TEXT REFERENCES bloquera.productos(id) ON DELETE RESTRICT,
+    producto_nombre TEXT NOT NULL,
+    cantidad_inicial NUMERIC(12,0) NOT NULL,
+    cantidad_disponible NUMERIC(12,0) NOT NULL,
+    fecha_produccion TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ultimo_riego TIMESTAMPTZ,
+    nota TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ==============================================================================
 -- Políticas de Seguridad RLS (Row Level Security)
 -- Habilitar acceso de lectura y escritura para PostgREST / anon / authenticated
@@ -202,6 +217,7 @@ ALTER TABLE bloquera.pedidos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bloquera.ventas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bloquera.historial_produccion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bloquera.recepcion_compras ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bloquera.lotes_curado ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Permitir todo en configuracion" ON bloquera.configuracion FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir todo en productos" ON bloquera.productos FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
@@ -212,6 +228,7 @@ CREATE POLICY "Permitir todo en pedidos" ON bloquera.pedidos FOR ALL TO anon, au
 CREATE POLICY "Permitir todo en ventas" ON bloquera.ventas FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir todo en historial_produccion" ON bloquera.historial_produccion FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir todo en recepcion_compras" ON bloquera.recepcion_compras FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir todo en lotes_curado" ON bloquera.lotes_curado FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);
 
 -- ==============================================================================
 -- Datos Iniciales (Seed Data)
