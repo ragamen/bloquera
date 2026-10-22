@@ -1243,6 +1243,12 @@ body {
   border: 1px solid #bae6fd;
 }
 
+.badge-estado-pedido.listo {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
 .badge-estado-pedido.entregado {
   background: var(--exito-fondo);
   color: var(--exito-texto);
@@ -1269,9 +1275,29 @@ body {
   color: #ffffff;
 }
 
+.btn-mini-accion.fin {
+  background: #d97706;
+  color: #ffffff;
+}
+
 .btn-mini-accion.desp {
   background: #15803d;
   color: #ffffff;
+}
+
+.aviso-tanda-iniciada {
+  background: #e0f2fe;
+  border: 1px solid #7dd3fc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.aviso-tanda-iniciada p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #0369a1;
+  font-weight: 600;
 }
 
 .btn-accion-prov.edit {

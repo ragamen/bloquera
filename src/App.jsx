@@ -189,6 +189,10 @@ const DIA_DEFAULT = {
   roturas: '0',
   otras: '0',
   nota: '',
+  tandaIniciada: false,
+  sacosLanzados: '0',
+  arenaLanzada: '0',
+  arrocilloLanzado: '0',
 }
 
 function cargarConfig() {
@@ -575,7 +579,7 @@ export default function App() {
   }, [productoActivo, costosPorProducto, hoy, inv, cfg.umbrales, tobosM3, toboLitros])
 
   const pedidosPendientes = useMemo(() => {
-    return pedidos.filter((p) => p.estado === 'en_cola' || p.estado === 'en_produccion')
+    return pedidos.filter((p) => p.estado !== 'entregado')
   }, [pedidos])
 
   const evaluacionMaterialesCola = useMemo(() => {
@@ -584,10 +588,12 @@ export default function App() {
     let arrocilloM3Requerido = 0
     let totalUnidades = 0
 
-    for (const ped of pedidosPendientes) {
+    const pedidosEnEspera = pedidos.filter((p) => p.estado === 'en_cola')
+
+    for (const ped of pedidosEnEspera) {
       const prodInfo = costosPorProducto[ped.productoId]
       const rend = prodInfo?.rend || 50
-      const sacosPed = ped.cantidad / rend
+      const sacosPed = Math.ceil(ped.cantidad / rend)
       sacosRequeridos += sacosPed
       arenaM3Requerida += sacosPed * (prodInfo?.arenaM3Saco || 0.1)
       arrocilloM3Requerido += sacosPed * (prodInfo?.arrocilloM3Saco || 0.1)
@@ -617,7 +623,7 @@ export default function App() {
       deficitArrocillo,
       alcanzaMaterial,
     }
-  }, [pedidosPendientes, costosPorProducto, inv.invSacos, inv.invArena, inv.invArrocillo])
+  }, [pedidos, costosPorProducto, inv.invSacos, inv.invArena, inv.invArrocillo])
 
   const analisisGoodwill = useMemo(() => {
     const ahora = momentoActual
@@ -714,14 +720,72 @@ export default function App() {
     return proveedores.find((p) => p.material.toLowerCase() === tipo.toLowerCase()) || proveedores[0]
   }
 
+  const iniciarTandaHoy = () => {
+    const sacos = num(hoy.sacosPlan)
+    if (sacos <= 0) {
+      alert('Ingresa una cantidad valida de sacos para la tanda.')
+      return
+    }
+
+    const p = productoActivo
+    const cost = costosPorProducto[p.id] || {
+      arenaM3Saco: 0.1,
+      arrocilloM3Saco: 0.1,
+    }
+    const arenaM3 = cost.arenaM3Saco * sacos
+    const arrocilloM3 = cost.arrocilloM3Saco * sacos
+
+    const mensaje =
+      '¿Enviar orden de produccion a mezcladora para ' +
+      p.nombre +
+      '?\n\n' +
+      'Se descontaran de bodega:\n' +
+      '- ' +
+      cant(sacos) +
+      ' sacos de cemento\n' +
+      '- ' +
+      arenaM3.toFixed(2) +
+      ' m³ de arena\n' +
+      '- ' +
+      arrocilloM3.toFixed(2) +
+      ' m³ de arrocillo'
+
+    if (!window.confirm(mensaje)) return
+
+    setInvEstado((e) => ({
+      ...e,
+      invSacos: String(Math.round((num(e.invSacos) - sacos) * 1000) / 1000),
+      invArena: String(Math.round((num(e.invArena) - arenaM3) * 1000) / 1000),
+      invArrocillo: String(Math.round((num(e.invArrocillo) - arrocilloM3) * 1000) / 1000),
+    }))
+
+    setHoy((x) => ({
+      ...x,
+      tandaIniciada: true,
+      sacosLanzados: String(sacos),
+      arenaLanzada: String(arenaM3),
+      arrocilloLanzado: String(arrocilloM3),
+    }))
+
+    alert('Orden enviada a produccion. Materia prima descontada de bodega.')
+  }
+
   const registrarCierreJornada = () => {
     if (calculosHoy.sacosReal <= 0) return
     const p = productoActivo
+    const cost = costosPorProducto[p.id] || {
+      arenaM3Saco: 0.1,
+      arrocilloM3Saco: 0.1,
+    }
+
+    const fueIniciada = Boolean(hoy.tandaIniciada)
+    const unidadesBuenas = calculosHoy.unidadesReal - calculosHoy.mermaTotal
+
     const mensaje =
-      '¿Registrar cierre de jornada para ' +
+      '¿Finalizar produccion y registrar cierre de jornada para ' +
       p.nombre +
       '?\n\n' +
-      'Produccion real: ' +
+      'Produccion real lograda: ' +
       cant(calculosHoy.unidadesReal) +
       ' unidades (' +
       cant(calculosHoy.sacosReal) +
@@ -731,22 +795,41 @@ export default function App() {
       ' unidades (' +
       dinero(calculosHoy.mermaValor) +
       ')\n' +
-      'Quedaran en stock de este producto: ' +
-      cant(calculosHoy.stockProdDespues) +
-      ' unidades'
+      'Se incrementara el inventario en patio en: +' +
+      cant(unidadesBuenas) +
+      ' unidades terminadas'
 
     if (!window.confirm(mensaje)) return
 
     setInvEstado((e) => {
+      const stockActual = num(e.invPorProducto?.[p.id] ?? (p.id === 'b12' ? e.invBloques : 0))
       const nuevoPorProd = {
         ...e.invPorProducto,
-        [p.id]: String(Math.max(0, Math.round(calculosHoy.stockProdDespues))),
+        [p.id]: String(Math.max(0, Math.round(stockActual + unidadesBuenas))),
       }
+
+      let nuevoSacos = num(e.invSacos)
+      let nuevaArena = num(e.invArena)
+      let nuevoArrocillo = num(e.invArrocillo)
+
+      if (fueIniciada) {
+        const difSacos = calculosHoy.sacosReal - num(hoy.sacosLanzados)
+        if (Math.abs(difSacos) > 0.001) {
+          nuevoSacos -= difSacos
+          nuevaArena -= difSacos * cost.arenaM3Saco
+          nuevoArrocillo -= difSacos * cost.arrocilloM3Saco
+        }
+      } else {
+        nuevoSacos -= calculosHoy.sacosReal
+        nuevaArena -= calculosHoy.sacosReal * cost.arenaM3Saco
+        nuevoArrocillo -= calculosHoy.sacosReal * cost.arrocilloM3Saco
+      }
+
       return {
         ...e,
-        invSacos: String(Math.round(calculosHoy.invSacosDespues * 1000) / 1000),
-        invArena: String(Math.round(calculosHoy.invArenaDespues * 1000) / 1000),
-        invArrocillo: String(Math.round(calculosHoy.invArrocilloDespues * 1000) / 1000),
+        invSacos: String(Math.round(nuevoSacos * 1000) / 1000),
+        invArena: String(Math.round(nuevaArena * 1000) / 1000),
+        invArrocillo: String(Math.round(nuevoArrocillo * 1000) / 1000),
         invPorProducto: nuevoPorProd,
         invBloques: p.id === 'b12' ? nuevoPorProd.b12 : e.invBloques,
       }
@@ -788,8 +871,12 @@ export default function App() {
       roturas: '0',
       otras: '0',
       nota: '',
+      tandaIniciada: false,
+      sacosLanzados: '0',
+      arenaLanzada: '0',
+      arrocilloLanzado: '0',
     }))
-    alert('Jornada guardada correctamente y stock actualizado.')
+    alert('Produccion finalizada con exito. Inventario de productos terminados incrementado en patio.')
   }
 
   const crearOPonerEnColaPedido = (e) => {
@@ -872,6 +959,126 @@ export default function App() {
     setFormPedido((fp) => ({ ...fp, cantidad: '', nota: '', precioUnitario: '' }))
   }
 
+  const iniciarProduccionPedido = (pedId) => {
+    const ped = pedidos.find((x) => x.id === pedId)
+    if (!ped) return
+
+    const prodInfo = costosPorProducto[ped.productoId]
+    const rend = prodInfo?.rend || 50
+    const sacosReq = Math.ceil(ped.cantidad / rend)
+    const arenaReq = sacosReq * (prodInfo?.arenaM3Saco || 0.1)
+    const arrocilloReq = sacosReq * (prodInfo?.arrocilloM3Saco || 0.1)
+
+    const mensaje =
+      '¿Enviar orden de produccion a planta para ' +
+      ped.clienteNombre +
+      ' (' +
+      ped.cantidad +
+      ' ' +
+      ped.productoNombre +
+      ')?\n\n' +
+      'Se descontaran de bodega:\n' +
+      '- ' +
+      cant(sacosReq) +
+      ' sacos de cemento\n' +
+      '- ' +
+      arenaReq.toFixed(2) +
+      ' m³ de arena\n' +
+      '- ' +
+      arrocilloReq.toFixed(2) +
+      ' m³ de arrocillo'
+
+    if (!window.confirm(mensaje)) return
+
+    setInvEstado((e) => ({
+      ...e,
+      invSacos: String(Math.round((num(e.invSacos) - sacosReq) * 1000) / 1000),
+      invArena: String(Math.round((num(e.invArena) - arenaReq) * 1000) / 1000),
+      invArrocillo: String(Math.round((num(e.invArrocillo) - arrocilloReq) * 1000) / 1000),
+    }))
+
+    setPedidos((peds) =>
+      peds.map((item) =>
+        item.id === pedId
+          ? {
+              ...item,
+              estado: 'en_produccion',
+              sacosConsumidos: sacosReq,
+              arenaConsumida: arenaReq,
+              arrocilloConsumido: arrocilloReq,
+              fechaInicioProduccion: new Date().toISOString(),
+            }
+          : item,
+      ),
+    )
+
+    alert('Orden enviada a produccion. Materia prima descontada de bodega con exito.')
+  }
+
+  const finalizarProduccionPedido = (pedId) => {
+    const ped = pedidos.find((x) => x.id === pedId)
+    if (!ped) return
+
+    const mensaje =
+      '¿Finalizar produccion de ' +
+      ped.cantidad +
+      ' unidades de ' +
+      ped.productoNombre +
+      '?\n\n' +
+      'Se incrementara el inventario en patio en +' +
+      ped.cantidad +
+      ' unidades terminadas.'
+
+    if (!window.confirm(mensaje)) return
+
+    const stockActual = num(inv.invPorProducto?.[ped.productoId] ?? (ped.productoId === 'b12' ? inv.invBloques : 0))
+    const nuevoStock = stockActual + ped.cantidad
+
+    setInvEstado((prev) => {
+      const nuevoPorProd = {
+        ...prev.invPorProducto,
+        [ped.productoId]: String(Math.round(nuevoStock)),
+      }
+      return {
+        ...prev,
+        invPorProducto: nuevoPorProd,
+        invBloques: ped.productoId === 'b12' ? nuevoPorProd.b12 : prev.invBloques,
+      }
+    })
+
+    setPedidos((peds) =>
+      peds.map((item) =>
+        item.id === pedId
+          ? {
+              ...item,
+              estado: 'listo',
+              fechaFinProduccion: new Date().toISOString(),
+            }
+          : item,
+      ),
+    )
+
+    const registro = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      fecha: new Date().toISOString(),
+      productoId: ped.productoId,
+      productoNombre: ped.productoNombre,
+      sacosPlan: ped.sacosConsumidos || 0,
+      unidadesPlan: ped.cantidad,
+      sacos: ped.sacosConsumidos || 0,
+      bloques: ped.cantidad,
+      roturas: '0',
+      otras: '0',
+      costoProduccion: (ped.sacosConsumidos || 0) * (costosPorProducto[ped.productoId]?.costoSaco || 24),
+      perdidasValor: 0,
+      rendReal: ped.sacosConsumidos ? ped.cantidad / ped.sacosConsumidos : 0,
+      nota: 'Produccion finalizada de orden: ' + ped.clienteNombre,
+    }
+    setHistorial((h) => [registro, ...h])
+
+    alert('Produccion finalizada. +' + ped.cantidad + ' unidades ingresadas a productos terminados en patio. Orden lista para despachar.')
+  }
+
   const despacharPedidoDeCola = (pedId) => {
     const ped = pedidos.find((x) => x.id === pedId)
     if (!ped) return
@@ -919,17 +1126,11 @@ export default function App() {
       precioUnitario: ped.precioUnitario,
       total: ped.total,
       estadoPago: 'pagado',
-      nota: 'Despacho de pedido en cola: ' + (ped.nota || ''),
+      nota: 'Despacho de pedido entregado: ' + (ped.nota || ''),
     }
 
     setVentas((v) => [regVenta, ...v])
-    alert('Pedido entregado y despachado con éxito.')
-  }
-
-  const cambiarEstadoPedido = (pedId, nuevoEstado) => {
-    setPedidos((peds) =>
-      peds.map((item) => (item.id === pedId ? { ...item, estado: nuevoEstado } : item)),
-    )
+    alert('Pedido despachado y entregado al cliente. Descontado de patio.')
   }
 
   const borrarPedido = (pedId) => {
@@ -1426,6 +1627,16 @@ export default function App() {
                       <span className="valor-desglose">{calculosHoy.aguaPlanLitros.toFixed(0)} L</span>
                     </div>
                   </div>
+
+                  {hoy.tandaIniciada ? (
+                    <div className="aviso-tanda-iniciada">
+                      <p>Orden en produccion: se descontaron {cant(hoy.sacosLanzados)} sacos de cemento, {num(hoy.arenaLanzada).toFixed(2)} m³ de arena y {num(hoy.arrocilloLanzado).toFixed(2)} m³ de arrocillo de bodega.</p>
+                    </div>
+                  ) : (
+                    <button type="button" className="btn-accion principal fila-completa" onClick={iniciarTandaHoy}>
+                      Enviar Orden a Mezcladora (Descontar Materia Prima)
+                    </button>
+                  )}
                 </div>
               </section>
 
@@ -1518,7 +1729,9 @@ export default function App() {
                   </div>
 
                   <button className="btn-accion principal fila-completa" onClick={registrarCierreJornada}>
-                    Registrar Cierre de Jornada y Actualizar Stock
+                    {hoy.tandaIniciada
+                      ? 'Finalizar Producción e Incrementar Stock en Patio'
+                      : 'Registrar Cierre de Jornada y Actualizar Stock'}
                   </button>
                 </div>
               </section>
@@ -1774,27 +1987,47 @@ export default function App() {
                                 ? 'En Espera'
                                 : ped.estado === 'en_produccion'
                                   ? 'En Producción'
-                                  : 'Entregado'}
+                                  : ped.estado === 'listo'
+                                    ? 'Listo en Patio'
+                                    : 'Entregado'}
                             </span>
                           </td>
                           <td>
                             <div className="acciones-fila-cola">
                               {ped.estado === 'en_cola' && (
+                                <>
+                                  <button
+                                    className="btn-mini-accion prod"
+                                    title="Iniciar Producción (Descuenta Materia Prima de Bodega)"
+                                    onClick={() => iniciarProduccionPedido(ped.id)}
+                                  >
+                                    Producir (-Materia Prima)
+                                  </button>
+                                  <button
+                                    className="btn-mini-accion desp"
+                                    title="Despachar de inmediato desde patio"
+                                    onClick={() => despacharPedidoDeCola(ped.id)}
+                                  >
+                                    Despacho Inmediato
+                                  </button>
+                                </>
+                              )}
+                              {ped.estado === 'en_produccion' && (
                                 <button
-                                  className="btn-mini-accion prod"
-                                  title="Iniciar Producción"
-                                  onClick={() => cambiarEstadoPedido(ped.id, 'en_produccion')}
+                                  className="btn-mini-accion fin"
+                                  title="Finalizar Producción e Incrementar Patio"
+                                  onClick={() => finalizarProduccionPedido(ped.id)}
                                 >
-                                  Producir
+                                  Finalizar (+Patio)
                                 </button>
                               )}
-                              {ped.estado !== 'entregado' && (
+                              {ped.estado === 'listo' && (
                                 <button
                                   className="btn-mini-accion desp"
-                                  title="Despachar y descontar patio"
+                                  title="Despachar pedido terminado al cliente"
                                   onClick={() => despacharPedidoDeCola(ped.id)}
                                 >
-                                  Despachar
+                                  Despachar al Cliente
                                 </button>
                               )}
                               <button
