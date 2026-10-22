@@ -41,6 +41,11 @@ Todo en `src/App.jsx` + `src/index.css`.
   - `bloquera-ventas-v1` — historial de despachos y estado de cobranza
 - Datos SOLO en el navegador (localStorage); sin backend.
 
+- **Integración Supabase (Schema `bloquera`)**:
+  - `supabase_schema_bloquera.sql` — DDL completo con tablas, constraints, políticas RLS y seeds para el schema `bloquera`.
+  - `src/supabase.js` — cliente Supabase configurado con endpoint `https://metasupa.mbtech.work` y schema `bloquera`.
+  - `.env` — variables `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+
 ## Convenciones
 
 - Español en UI y nombres de funciones (ej. `registrarCierreJornada`, `ejecutarCompra`, `crearOPonerEnColaPedido`).
